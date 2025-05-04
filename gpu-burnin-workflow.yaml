@@ -1,0 +1,65 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: gpu-burnin-workflow
+spec:
+  arguments:
+    parameters:
+    - name: cuda-version
+      value: "11.8.0"
+    - name: linpack-image
+      value: "nvcr.io/nvidia/hpc-benchmarks:23.10"
+    - name: dcgm-image
+      value: "nvcr.io/nvidia/k8s/dcgm-exporter:3.1.7-3.1.4-ubuntu20.04"
+    - name: num-gpus
+      value: "1"
+  
+  entrypoint: gpu-burnin
+  
+  templates:
+  - name: gpu-burnin
+    steps:
+    - - name: linpack-test
+        template: run-linpack
+    - - name: dcgm-diagnostics
+        template: run-dcgm-diags
+  
+  - name: run-linpack
+    container:
+      image: "{{workflow.parameters.linpack-image}}"
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          cd /opt/hpl-linux-x86_64/bin
+          export CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7
+          # Run HPL benchmark
+          mpirun -np {{workflow.parameters.num-gpus}} ./xhpl
+      resources:
+        limits:
+          nvidia.com/gpu: "{{workflow.parameters.num-gpus}}"
+        requests:
+          nvidia.com/gpu: "{{workflow.parameters.num-gpus}}"
+      volumeMounts:
+      - name: shared-data
+        mountPath: /results
+  
+  - name: run-dcgm-diags
+    container:
+      image: "{{workflow.parameters.dcgm-image}}"
+      command: ["/bin/bash", "-c"]
+      args:
+        - |
+          # Run DCGM diagnostics
+          dcgmi diag -r 4
+      resources:
+        limits:
+          nvidia.com/gpu: "{{workflow.parameters.num-gpus}}"
+        requests:
+          nvidia.com/gpu: "{{workflow.parameters.num-gpus}}"
+      volumeMounts:
+      - name: shared-data
+        mountPath: /results
+  
+  volumes:
+  - name: shared-data
+    emptyDir: {}
