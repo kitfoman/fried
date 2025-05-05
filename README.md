@@ -1,8 +1,6 @@
-# fried
+# gpuFryer
 
-Fried is a set of workflows designed to burn in GPUs before putting them into the service. It runs a set of tests/benchmarks to test
-the GPUs, the interconnect, PCIE tests and cpu tests. 
+A simple daemonset that runs in a Kubernetes cluster and executes DCGM diagnostics on demand for GPU burn-in tests before putting GPUs into service. The server currently supports two endpoints:
+- A scheduling endpoint to initiate a diagnostic on a node targeting specific GPUs at a given diagnostic level, which returns an ID for the routine that starts the diagnostics. Returns an error if its unable to schedule the job at all.
 
-Burn in tests:
- - Linpack via nvcr.io/nvidia/hpc-benchmarks:23.10
- - dcgm diags
+- A status endpoint that returns the current status and/or result of the diagnostic
